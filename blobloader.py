@@ -3,6 +3,7 @@
 from cStringIO import StringIO
 from optparse import OptionParser
 import cookielib
+import logging
 import urllib
 import urllib2
 import mimetools
@@ -11,9 +12,9 @@ import os
 import stat
 
 
-class Callable:
-    def __init__(self, anycallable):
-        self.__call__ = anycallable
+MAX_BYTES = 1024**3
+
+LOG_FORMAT = '%(levelname)-8s %(asctime)s %(filename)s:%(lineno)s] %(message)s'
 
 
 class MultipartPostHandler(urllib2.BaseHandler):
@@ -52,36 +53,42 @@ class MultipartPostHandler(urllib2.BaseHandler):
         for key, value in vars:
             buf.write('--%s\r\n' % boundary)
             buf.write('Content-Disposition: form-data; name="%s"' % key)
-            buf.write('\r\n\r\n' + value + '\r\n')
+            buf.write('\r\n\r\n%s\r\n' % value)
 
         for key, fd in files:
             file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
             filename = fd.name.split('/')[-1]
-            contenttype = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+            contenttype = (mimetypes.guess_type(filename)[0] or
+                           'application/octet-stream')
             buf.write('--%s\r\n' % boundary)
-            buf.write('Content-Disposition: form-data; name="%s"; filename="%s"\r\n' % (key, filename))
+            buf.write('Content-Disposition: form-data; '
+                      'name="%s"; filename="%s"\r\n' % (key, filename))
             buf.write('Content-Type: %s\r\n' % contenttype)
             fd.seek(0)
-            buf.write('\r\n' + fd.read() + '\r\n')
+            buf.write('\r\n%s\r\n' % fd.read())
 
-        buf.write('--' + boundary + '--\r\n\r\n')
+        buf.write('--%s--\r\n\r\n' % boundary)
         buf = buf.getvalue()
 
         return boundary, buf
+
+    class Callable:
+        def __init__(self, anycallable):
+            self.__call__ = anycallable
 
     multipart_encode = Callable(multipart_encode)
 
     https_request = http_request
 
 
-def uploader(file_path):
+def upload(address, file_path):
     size = os.path.getsize(file_path)
-    if size < 1073741824:
-        print "preparing upload..."
-        result = urllib2.urlopen("http://localhost:8080/prepare")
+    if size < MAX_BYTES:
+        logging.info("preparing upload...")
+        result = urllib2.urlopen("http://%s/prepare" % address)
         upload_url = result.readline()
 
-        print "uploading blob..."
+        logging.info("uploading blob...")
         cookies = cookielib.CookieJar()
         opener = urllib2.build_opener(
             urllib2.HTTPCookieProcessor(cookies), MultipartPostHandler)
@@ -89,16 +96,27 @@ def uploader(file_path):
         params = {"file" : open(file_path, "rb")}
         results = opener.open(upload_url, params).read()
             
-        print "done."
+        logging.info("done")
     else:
-        print "upload file is too big"
+        logging.error("upload file is too big")
 
 
 if __name__ == "__main__":
     parser = OptionParser()
+
+    parser.add_option("--address", dest="address", metavar="ADDR:PORT",
+                  help="the address where the app is hosted",
+                  default='localhost:8080')
+
     (options, args) = parser.parse_args()  
 
-    if os.path.isfile(args[0]):
-        uploader(args[0])
-    else:
-        print "not a valid file"
+    logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
+
+    for file_path in args:
+        if not os.path.isfile(file_path):
+            logging.error("'%s': not a valid file" % file_path)
+            continue
+        try:
+            upload(options.address, file_path)
+        except Exception, e:
+            logging.error("failed to upload '%s' (%s)" % (file_path, e))
