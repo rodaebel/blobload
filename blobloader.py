@@ -12,9 +12,12 @@ import os
 import stat
 
 
-MAX_BYTES = 1024**3
+DESCRIPTION = 'Program to upload files to the blobload app.'
+USAGE = 'usage: %prog [options] file...'
 
 LOG_FORMAT = '%(levelname)-8s %(asctime)s %(filename)s:%(lineno)s] %(message)s'
+
+MAX_BYTES = 1024**3
 
 
 class MultipartPostHandler(urllib2.BaseHandler):
@@ -102,7 +105,7 @@ def upload(address, file_path):
 
 
 if __name__ == "__main__":
-    parser = OptionParser()
+    parser = OptionParser(description=DESCRIPTION, usage=USAGE)
 
     parser.add_option("--address", dest="address", metavar="ADDR:PORT",
                   help="the address where the app is hosted",
