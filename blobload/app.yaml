@@ -1,0 +1,15 @@
+application: blobload
+version: 1
+runtime: python
+api_version: 1
+
+handlers:
+
+- url: /upload
+  script: app.py
+
+- url: /serve/([^/]+)?
+  script: app.py
+
+- url: .*
+  script: app.py
