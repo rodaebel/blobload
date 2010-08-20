@@ -84,11 +84,11 @@ class MultipartPostHandler(urllib2.BaseHandler):
     https_request = http_request
 
 
-def upload(address, file_path):
+def upload(address, upload_path, file_path):
     size = os.path.getsize(file_path)
     if size < MAX_BYTES:
         logging.info("preparing upload...")
-        result = urllib2.urlopen("http://%s/prepare" % address)
+        result = urllib2.urlopen("http://%s/%s" % (address, upload_path))
         upload_url = result.readline()
 
         logging.info("uploading blob...")
@@ -98,8 +98,10 @@ def upload(address, file_path):
 
         params = {"file" : open(file_path, "rb")}
         results = opener.open(upload_url, params).read()
-            
-        logging.info("done")
+        if urllib.unquote(results) == os.path.basename(file_path):
+            logging.info("successfully uploaded '%s'" % file_path)
+        else:
+            logging.error("unknown error when uploading '%s'" % file_path)
     else:
         logging.error("upload file is too big")
 
@@ -111,6 +113,10 @@ if __name__ == "__main__":
                   help="the address where the app is hosted",
                   default='localhost:8080')
 
+    parser.add_option("--upload_path", dest="upload_path", metavar="PATH",
+                  help="the upload URL path",
+                  default='upload')
+
     (options, args) = parser.parse_args()  
 
     logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
@@ -120,6 +126,6 @@ if __name__ == "__main__":
             logging.error("'%s': not a valid file" % file_path)
             continue
         try:
-            upload(options.address, file_path)
+            upload(options.address, options.upload_path, file_path)
         except Exception, e:
             logging.error("failed to upload '%s' (%s)" % (file_path, e))

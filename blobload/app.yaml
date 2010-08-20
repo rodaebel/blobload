@@ -7,10 +7,9 @@ handlers:
 
 - url: /upload
   script: app.py
-  login: required
 
 - url: /serve/([^/]+)?
   script: app.py
 
-- url: .*
+- url: /
   script: app.py

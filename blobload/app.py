@@ -10,43 +10,45 @@ import urllib
 
 
 class MainHandler(webapp.RequestHandler):
-    """Provides the index.html page."""
+    """A simple main handler."""
 
     def get(self):
+        """Provides the index.html page."""
+
+        upload_info = self.request.GET.get('upload_info')
+        if upload_info:
+            self.response.headers['content-type'] = 'text/plain'
+            self.response.out.write(upload_info)
+            return
+
         blobs = reversed(blobstore.BlobInfo.all().fetch(10))
         output = template.render('index.html', {'blobs': blobs})
         self.response.out.write(output)
 
 
-class UploadUrlRequestHandler(webapp.RequestHandler):
-    """Provides the file upload URL."""
+class UploadHandler(blobstore_handlers.BlobstoreUploadHandler):
+    """Handles upload of blobs."""
 
     def get(self):
-        """Handles get."""
+        """Provides an upload URL."""
 
         upload_url = blobstore.create_upload_url('/upload')
 
         self.response.headers['content-type'] = 'text/plain'
         self.response.out.write(upload_url)
 
-
-class UploadHandler(blobstore_handlers.BlobstoreUploadHandler):
-    """Handles upload of blobs."""
-
     def post(self):
-        """Handles post."""
+        """Stores blob infos for uploaded files."""
 
         upload_files = self.get_uploads('file')
         blob_info = upload_files[0]
-        self.redirect('/')
+        self.redirect('/?upload_info=%s' % urllib.quote(blob_info.filename))
 
 
 class ServeHandler(blobstore_handlers.BlobstoreDownloadHandler):
     """Serves blobs."""
 
     def get(self, resource):
-        """Handles get."""
-
         resource = str(urllib.unquote(resource))
         blob_info = blobstore.BlobInfo.get(resource)
         self.send_blob(blob_info)
@@ -54,7 +56,6 @@ class ServeHandler(blobstore_handlers.BlobstoreDownloadHandler):
 
 app = webapp.WSGIApplication([
     ('/', MainHandler),
-    ('/prepare', UploadUrlRequestHandler),
     ('/upload', UploadHandler),
     ('/serve/([^/]+)?', ServeHandler),
 ], debug=True)
