@@ -27,18 +27,18 @@ class MultipartPostHandler(urllib2.BaseHandler):
         data = request.get_data()
         if data is not None and type(data) != str:
             files = []
-            vars = []
+            fields = []
 
             for key, value in data.items():
                 if type(value) == file:
                     files.append((key, value))
                 else:
-                    vars.append((key, value))
+                    fields.append((key, value))
 
             if len(files) == 0:
-                data = urllib.urlencode(vars, 1)
+                data = urllib.urlencode(fields, 1)
             else:
-                boundary, data = self.multipart_encode(vars, files)
+                boundary, data = self.multipart_encode(fields, files)
                 contenttype = 'multipart/form-data; boundary=%s' % boundary
                 request.add_unredirected_header('Content-Type', contenttype)
 
@@ -46,14 +46,14 @@ class MultipartPostHandler(urllib2.BaseHandler):
         
         return request
 
-    def multipart_encode(vars, files, boundary=None, buf=None):
+    def multipart_encode(fields, files, boundary=None, buf=None):
         if boundary is None:
             boundary = mimetools.choose_boundary()
 
         if buf is None:
             buf = StringIO()
 
-        for key, value in vars:
+        for key, value in fields:
             buf.write('--%s\r\n' % boundary)
             buf.write('Content-Disposition: form-data; name="%s"' % key)
             buf.write('\r\n\r\n%s\r\n' % value)
