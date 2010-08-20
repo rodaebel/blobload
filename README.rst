@@ -5,7 +5,7 @@ Blobload
 A simple Google App Engine Blobstore app + blobloader script.
 
 In order to upload one or more files to your locally running (dev_appserver.py)
-blobload app, run the blobloader.py script by typing:
+blobload app, run the blobloader.py script by typing::
 
   $ python blobloader.py /path/to/myimage.jpg
 

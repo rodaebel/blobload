@@ -86,24 +86,29 @@ class MultipartPostHandler(urllib2.BaseHandler):
 
 def upload(address, upload_path, file_path):
     size = os.path.getsize(file_path)
-    if size < MAX_BYTES:
-        logging.info("preparing upload...")
-        result = urllib2.urlopen("http://%s/%s" % (address, upload_path))
-        upload_url = result.readline()
+    if size > MAX_BYTES:
+        logging.error("'%s': file too large" % file_path)
+        return
 
-        logging.info("uploading blob...")
-        cookies = cookielib.CookieJar()
-        opener = urllib2.build_opener(
-            urllib2.HTTPCookieProcessor(cookies), MultipartPostHandler)
+    logging.info("preparing upload...")
+    result = urllib2.urlopen("http://%s/%s" % (address, upload_path))
+    upload_url = result.readline()
 
-        params = {"file" : open(file_path, "rb")}
-        results = opener.open(upload_url, params).read()
-        if urllib.unquote(results) == os.path.basename(file_path):
-            logging.info("successfully uploaded '%s'" % file_path)
-        else:
-            logging.error("unknown error when uploading '%s'" % file_path)
+    logging.info("uploading blob...")
+    cookies = cookielib.CookieJar()
+    opener = urllib2.build_opener(
+        urllib2.HTTPCookieProcessor(cookies), MultipartPostHandler)
+
+    params = {"file" : open(file_path, "rb")}
+    result = opener.open(upload_url, params)
+    if result.code != 200:
+        logging.error("upload failed (%i)" % result.code)
+        return
+
+    if urllib.unquote(result.read()) == os.path.basename(file_path):
+        logging.info("successfully uploaded '%s'" % file_path)
     else:
-        logging.error("upload file is too big")
+        logging.error("unknown error when uploading '%s'" % file_path)
 
 
 if __name__ == "__main__":
